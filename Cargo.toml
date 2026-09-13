@@ -1,0 +1,25 @@
+[package]
+name = "wincred-secretsd"
+version = "0.0.0"
+edition = "2021"
+description = "freedesktop.org Secret Service daemon backed by Windows Credential Manager (via wincred.exe), for WSL"
+license = "MIT"
+repository = "https://github.com/vivainio/wincred-secretsd"
+
+[[bin]]
+name = "wincred-secretsd"
+path = "src/main.rs"
+
+[dependencies]
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+base64 = "0.22"
+anyhow = "1"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
