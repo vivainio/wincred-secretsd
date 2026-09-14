@@ -1,5 +1,6 @@
 mod backend;
 mod collection;
+mod install;
 mod item;
 mod model;
 mod service;
@@ -16,6 +17,19 @@ const DEFAULT_COLLECTION: &str = "login";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.first().map(String::as_str) {
+        Some("install") => return install::install(args[1..].iter().any(|a| a == "--dry")).await,
+        Some("uninstall") => {
+            return install::uninstall(args[1..].iter().any(|a| a == "--dry")).await
+        }
+        Some(other) => anyhow::bail!(
+            "unknown argument \"{other}\" (expected `install [--dry]`, `uninstall [--dry]`, or \
+             no argument to run the daemon in the foreground)"
+        ),
+        None => {}
+    }
+
     let backend = Backend::new();
 
     let default_collection_path =

@@ -36,11 +36,20 @@ see [wincred's README](https://github.com/vivainio/wincred#install).
 
 ```sh
 cargo install --path .
-mkdir -p ~/.config/systemd/user
-cp systemd/wincred-secretsd.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now wincred-secretsd
+wincred-secretsd install
 ```
+
+`install` writes a systemd user unit (pointing at wherever `cargo install`
+put the binary, with `WINCRED_EXE` pinned to the resolved absolute path of
+`wincred.exe` -- systemd user services get a minimal `PATH` that doesn't
+include WSL's Windows interop entries, so a bare `wincred.exe` lookup at
+runtime would fail even though it works from an interactive shell) and
+enables it. It doesn't start anything or touch any currently-running
+service -- restart WSL afterwards (`wsl --shutdown` from Windows, then
+reopen a WSL window) so everything comes up fresh from the files `install`
+wrote. Run `wincred-secretsd uninstall` to remove it again. Pass `--dry` to
+either command to print what it would do -- which files it'd write/remove
+and which `systemctl` commands it'd run -- without touching anything.
 
 This requires a persistent D-Bus session bus, which in turn requires
 systemd running inside WSL (`systemd=true` in `/etc/wsl.conf` -- see
@@ -48,10 +57,27 @@ systemd running inside WSL (`systemd=true` in `/etc/wsl.conf` -- see
 for why that's worth having anyway). Without it, a bare WSL shell has no
 session bus for the daemon to claim `org.freedesktop.secrets` on.
 
-If GNOME Keyring or KWallet is also running and already owns
+If GNOME Keyring is also installed and already owns
 `org.freedesktop.secrets` (unlikely in a headless WSL distro, more likely if
-you've installed a desktop environment via WSLg), disable its secrets
-component so this daemon can claim the name instead.
+you've installed a desktop environment via WSLg), `install` detects it,
+first backs up its actual secret storage (`~/.local/share/keyrings/*` --
+the `.keyring` files, not just config) to
+`~/.local/share/wincred-secretsd/backups/keyrings-<timestamp>/` via a plain
+`cp -a` (the original is left in place, untouched), then writes a systemd
+override dropping just the `secrets` component from
+`gnome-keyring-daemon.service` (keeping `pkcs11`/other components it was
+running) -- so once WSL restarts, gnome-keyring-daemon comes up without
+`secrets` and this daemon can claim the name uncontested, no manual edit
+needed. `uninstall` removes that override so GNOME Keyring's original
+components come back on the next restart (it doesn't touch the backup --
+delete it yourself once you're confident everything's fine). Note none of
+this migrates anything to wincred-secretsd's own storage: secrets GNOME
+Keyring already had (saved browser passwords, `git-credential-libsecret`
+entries, etc.) aren't moved to Windows Credential Manager -- those apps
+just won't see them through the
+Secret Service API anymore until re-saved. KWallet isn't handled
+automatically; free the name
+from it by hand first if that's what's running.
 
 ## How it maps onto wincred
 
