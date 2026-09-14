@@ -64,6 +64,20 @@ secret_b64}` JSON-encoded as the wincred secret blob.
 Set `WINCRED_EXE` to override the `wincred.exe` binary invoked (defaults to
 `wincred.exe` on `PATH`) -- useful for testing against a stub.
 
+## Testing
+
+`tests/integration.py` drives the real daemon end-to-end via `secret-tool`
+(store, lookup, search, replace, clear) against `tests/stub_wincred.py`, a
+Python stand-in for `wincred.exe` backed by a JSON file instead of the
+Windows Credential Manager. It starts its own private D-Bus session bus, so
+it's safe to run alongside a real session and doesn't need Windows/wincred
+at all -- just `cargo`, `dbus-launch`, and `secret-tool` (`apt install
+dbus-user-session libsecret-tools`):
+
+```sh
+python3 tests/integration.py
+```
+
 ## Design notes
 
 Packing everything into opaque `secretservice/...` targets means an item
